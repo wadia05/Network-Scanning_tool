@@ -22,7 +22,7 @@ Build your own lightweight network scanner (not just using Nmap directly), inclu
 ## Important Note
 Github will be the middle point for the project, so all the code and documentation will be there, and we will use it to track our progress and share our work. We will also use it to collaborate and communicate with each other.
 
-## `Dna9a's` Part :
+## ``Dna9a's`` Part :
 - The whole Python program using `Scapy`
 - Python + Scapy (packet crafting and discovery)
 
@@ -33,7 +33,7 @@ Github will be the middle point for the project, so all the code and documentati
 - Server security input validation, rate limiting.
 - Report generation (PDF/HTML) using python libraries like `reportlab` or `weasyprint`.
 
-## `Dbvonie's` Part :
+## ``Dbvonie's`` Part :
 - Server-side logic and Flask app
 - Flask (web interface)
 - login page with bcrypt
