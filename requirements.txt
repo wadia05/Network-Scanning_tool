@@ -1,0 +1,4 @@
+# i need to add more requirements :
+flake8
+mypy
+scapy
