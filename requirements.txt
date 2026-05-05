@@ -8,3 +8,4 @@ flask-login
 flask-limiter
 bcrypt
 flask-socketio
+pydantic # used in models.py for data validation :)
