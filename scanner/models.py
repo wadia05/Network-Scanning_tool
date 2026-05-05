@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import ipaddress
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 
@@ -234,10 +234,21 @@ class FingerprintResult(BaseModel):
         Fusionne deux FingerprintResult.
 
         Règle : on garde les champs du résultat avec la confidence
-        la plus haute, et on fusionne les sources des deux.
+        la plus haute. Les sources ne sont fusionnées que si les deux
+        résultats ont des OS families compatibles (évite de mélanger
+        des indices Windows et Linux contradictoires).
         """
         base = self if self.confidence >= other.confidence else other
-        merged_sources = {**other.sources, **self.sources}
+        loser = other if self.confidence >= other.confidence else self
+
+        os_compatible = (
+            base.os_family == loser.os_family
+            or base.os_family == OSFamily.UNKNOWN
+            or loser.os_family == OSFamily.UNKNOWN
+        )
+        merged_sources = (
+            {**loser.sources, **base.sources} if os_compatible else {**base.sources}
+        )
 
         return FingerprintResult(
             os_family=base.os_family,
@@ -305,11 +316,11 @@ class Device(BaseModel):
         description="True si l'équipement a répondu lors du dernier scan.",
     )
     first_seen: datetime = Field(
-        default_factory=datetime.now,
+        default_factory=lambda: datetime.now(timezone.utc),
         description="Horodatage de la première découverte.",
     )
     last_seen: datetime = Field(
-        default_factory=datetime.now,
+        default_factory=lambda: datetime.now(timezone.utc),
         description="Horodatage du dernier scan où l'équipement était actif.",
     )
 
@@ -350,7 +361,11 @@ class Device(BaseModel):
     @property
     def age(self) -> float:
         """Durée en secondes depuis first_seen."""
-        return (datetime.now() - self.first_seen).total_seconds()
+        now = datetime.now(timezone.utc)
+        fs = self.first_seen
+        if fs.tzinfo is None:
+            fs = fs.replace(tzinfo=timezone.utc)
+        return (now - fs).total_seconds()
 
     # ── Port helpers ─────────────────────────────────────────
 
@@ -386,7 +401,7 @@ class Device(BaseModel):
     def mark_offline(self) -> None:
         """Marque l'équipement comme hors ligne."""
         self.is_online = False
-        self.last_seen = datetime.now()
+        self.last_seen = datetime.now(timezone.utc)
 
     # ── Serialization ────────────────────────────────────────
 
@@ -417,7 +432,7 @@ class ScanResult(BaseModel):
         examples=["192.168.1.0/24", "10.0.0.0/8"],
     )
     timestamp: datetime = Field(
-        default_factory=datetime.now,
+        default_factory=lambda: datetime.now(timezone.utc),
         description="Horodatage du début du scan.",
     )
     devices: list[Device] = Field(

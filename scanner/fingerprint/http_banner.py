@@ -115,7 +115,7 @@ def _extract_headers(raw: str) -> dict[str, str]:
 # ─────────────────────────────────────────────
 
 # Patterns : (regex sur header value, os_family, os_version, device_type, confidence)
-_SERVER_PATTERNS: list[tuple] = [
+_SERVER_PATTERNS: list[tuple[str, str, str, str, float]] = [
     # ── Windows / IIS ────────────────────────────────────────
     (r"IIS/10\.0",            "Windows", "Windows Server 2016/2019 or Win10+", "Server",   0.90),
     (r"IIS/8\.5",             "Windows", "Windows Server 2012 R2",             "Server",   0.88),
@@ -155,7 +155,7 @@ _SERVER_PATTERNS: list[tuple] = [
     (r"Jetty",                "Linux",   "Jetty (Java)",                      "Server",    0.75),
 ]
 
-_X_POWERED_PATTERNS: list[tuple] = [
+_X_POWERED_PATTERNS: list[tuple[str, str, str, str, float]] = [
     (r"PHP/5\.",   "Linux", "PHP 5.x (EOL — vulnérable!)", "Server", 0.70),
     (r"PHP/7\.",   "Linux", "PHP 7.x",                     "Server", 0.65),
     (r"PHP/8\.",   "Linux", "PHP 8.x",                     "Server", 0.65),
@@ -257,6 +257,13 @@ def http_banner(device: Device) -> FingerprintResult | None:
         raw = _http_request(device.ip, port)
         if not raw:
             continue
+
+        # Skip 5xx responses — server errors rarely carry useful fingerprint headers
+        first_line = raw.splitlines()[0] if raw else ""
+        if first_line.startswith("HTTP/"):
+            parts = first_line.split(None, 2)
+            if len(parts) >= 2 and parts[1].startswith("5"):
+                continue
 
         headers = _extract_headers(raw)
         result  = _analyze_headers(headers, port)

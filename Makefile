@@ -18,18 +18,18 @@ RESET = \033[0m
 # Variables
 # ─────────────────────────────────────────────
 
-PYTHON := python3
-PIP := pip3
+VENV := venv
+PYTHON := $(VENV)/bin/python3
+PIP := $(VENV)/bin/pip
 SCANNER_MAIN := scanner/main.py
 SCANNER_PKG := scanner
-VENV := venv
 REQUIREMENTS := requirements.txt
 
 # ─────────────────────────────────────────────
 # Phony targets
 # ─────────────────────────────────────────────
 
-.PHONY: help install dev test run clean lint fmt check all
+.PHONY: help install dev test run run-sudo clean lint fmt check all
 
 
 # ─────────────────────────────────────────────
@@ -47,6 +47,7 @@ help:
 	@echo ""
 	@echo "$(CYAN)Usage:$(RESET)"
 	@echo "  make run           — Run the scanner (auto-detects network)"
+	@echo "  make run-sudo      — Run with sudo (required for ARP/raw sockets)"
 	@echo "  make run NETWORK=192.168.1.0/24 — Scan specific network"
 	@echo ""
 	@echo "$(YELLOW)Quality & Testing:$(RESET)"
@@ -86,6 +87,10 @@ dev: install
 run:
 	@echo "$(CYAN)🚀 Starting Network Security Scanner...$(RESET)"
 	@$(PYTHON) -m $(SCANNER_PKG).main $(ARGS)
+
+run-sudo:
+	@echo "$(CYAN)🚀 Starting Network Security Scanner (with sudo for raw sockets)...$(RESET)"
+	@sudo $(PYTHON) -m $(SCANNER_PKG).main $(ARGS)
 
 run-list:
 	@echo "$(CYAN)📜 Listing previous scans...$(RESET)"

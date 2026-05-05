@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import socket
 import ssl
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from ..models import Device, Port, PortState, PortProtocol
 

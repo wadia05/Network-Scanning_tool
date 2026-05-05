@@ -6,7 +6,10 @@ from __future__ import annotations
 
 import csv
 import json
+import os
 import sqlite3
+import stat
+import uuid
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
@@ -26,7 +29,23 @@ from .models import (
 # Config
 # ─────────────────────────────────────────────
 
-_DB_PATH = Path(__file__).parent / "data" / "scans.db"
+_DB_PATH = Path(
+    os.environ.get("SCANNER_DB_PATH")
+    or (Path(__file__).parent / "data" / "scans.db")
+)
+
+
+# ─────────────────────────────────────────────
+# Helpers
+# ─────────────────────────────────────────────
+
+
+def _validate_scan_id(scan_id: str) -> None:
+    """Ensure scan_id is a valid UUID to prevent path traversal in export paths."""
+    try:
+        uuid.UUID(scan_id)
+    except (ValueError, AttributeError):
+        raise ValueError(f"scan_id invalide (doit être un UUID) : '{scan_id}'")
 
 
 # ─────────────────────────────────────────────
@@ -38,7 +57,7 @@ _DB_PATH = Path(__file__).parent / "data" / "scans.db"
 def _connect(db_path: Path = _DB_PATH):
     """Context manager — ouvre et ferme la connexion SQLite proprement."""
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path, timeout=10.0)
     conn.row_factory = sqlite3.Row  # accès par nom de colonne
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA journal_mode = WAL")  # meilleure concurrence
@@ -108,6 +127,13 @@ def init_db(db_path: Path = _DB_PATH) -> None:
             CREATE INDEX IF NOT EXISTS idx_devices_mac     ON devices(mac);
             CREATE INDEX IF NOT EXISTS idx_ports_device_id ON ports(device_id);
         """)
+
+    # Restrict DB file access to owner only (mode 0600)
+    try:
+        os.chmod(db_path, stat.S_IRUSR | stat.S_IWUSR)
+    except OSError:
+        pass
+
     print(f"[+] Base de données initialisée : {db_path}")
 
 
@@ -209,6 +235,16 @@ def save_scan(scan: ScanResult, db_path: Path = _DB_PATH) -> str:
 def _row_to_device(row: sqlite3.Row, ports: list[sqlite3.Row]) -> Device:
     """Reconstruit un Device depuis les lignes SQLite."""
 
+    # Parse fp_sources separately to handle corruption without dropping the whole fingerprint
+    fp_sources: dict = {}
+    if row["fp_sources"]:
+        try:
+            parsed = json.loads(row["fp_sources"])
+            if isinstance(parsed, dict):
+                fp_sources = parsed
+        except (json.JSONDecodeError, TypeError):
+            pass  # Corrupt sources field — fall back to empty dict
+
     # Fingerprint
     fp = None
     if row["os_family"]:
@@ -223,7 +259,7 @@ def _row_to_device(row: sqlite3.Row, ports: list[sqlite3.Row]) -> Device:
                 ),
                 device_vendor=row["device_vendor"],
                 confidence=row["confidence"] or 0.0,
-                sources=json.loads(row["fp_sources"]) if row["fp_sources"] else {},
+                sources=fp_sources,
                 tcp_ttl=row["tcp_ttl"],
                 tcp_window=row["tcp_window"],
             )
@@ -400,12 +436,14 @@ def export_json(
     Exporte un scan en JSON.
 
     Args:
-        scan_id:     Scan à exporter.
-        output_path: Chemin de sortie (défaut: data/export_<scan_id>.json).
+        scan_id:     Scan à exporter (doit être un UUID valide).
+        output_path: Chemin de sortie (défaut: data/export_<scan_id[:8]>.json).
 
     Returns:
         Chemin du fichier créé.
     """
+    _validate_scan_id(scan_id)
+
     scan = load_scan(scan_id, db_path)
     if not scan:
         raise ValueError(f"Scan introuvable : {scan_id}")
@@ -428,12 +466,14 @@ def export_csv(
     Exporte un scan en CSV (une ligne par device).
 
     Args:
-        scan_id:     Scan à exporter.
-        output_path: Chemin de sortie (défaut: data/export_<scan_id>.csv).
+        scan_id:     Scan à exporter (doit être un UUID valide).
+        output_path: Chemin de sortie (défaut: data/export_<scan_id[:8]>.csv).
 
     Returns:
         Chemin du fichier créé.
     """
+    _validate_scan_id(scan_id)
+
     scan = load_scan(scan_id, db_path)
     if not scan:
         raise ValueError(f"Scan introuvable : {scan_id}")
