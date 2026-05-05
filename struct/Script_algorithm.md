@@ -1,3 +1,21 @@
+```
+scanner/
+├── core/ ✅ DONE
+│   ├── arp_scan.py          ← ✅ DONE
+│   └── port_scan.py         ← ✅ DONE
+│
+├── fingerprint/
+│   ├── mac_lookup.py        ← pas encore touché
+│   ├── tcp_fingerprint.py   ← pas encore touché
+│   ├── dhcp_fingerprint.py  ← pas encore touché
+│   ├── http_banner.py       ← pas encore touché
+│   └── os_classifier.py     ← pas encore touché
+│
+├── storage.py               ← pas encore touché
+├── models.py                ← ✅ DONE
+└── main.py                  ← en dernier
+```
+
 ```markdown
 projet/
 ├── scanner/          # Dna9a (Python/Scapy)
@@ -8,7 +26,7 @@ projet/
 └── README.md
 
 
-    scanner/
+scanner/
 │
 ├── main.py                  # Point d'entrée — orchestre tout
 │
@@ -32,7 +50,8 @@ projet/
     ├── oui.txt                  # Base IEEE MAC (téléchargée 1x)
     ├── tcp_signatures.json      # Signatures TCP par OS
     └── dhcp_fingerprints.json   # Base fingerbank
-
+```
+```
 main.py
   │
   ├─→ core/arp_scan.py
@@ -60,9 +79,9 @@ main.py
   │
   └─→ storage.py
         └─→ sauvegarde le ScanResult complet en SQLite
-
-
-        Semaine 1 — Le scan brut fonctionne
+```
+```
+Semaine 1 — Le scan brut fonctionne
   → models.py
   → core/arp_scan.py
   → core/port_scan.py
@@ -78,7 +97,19 @@ Semaine 3 — Le cerveau + intégration
   → fingerprint/os_classifier.py   (combine tout)
   → main.py qui relie tout
   → tests sur vrai réseau
-  
+```
+```
+1. core/arp_scan.py          → découverte des hôtes, base de tout
+2. fingerprint/mac_lookup.py → facile, juste un dict + fichier IEEE
+3. core/port_scan.py         → enrichit les Device avec les ports
+4. fingerprint/http_banner.py→ facile, dépend des ports ouverts
+5. fingerprint/tcp_fingerprint.py → le plus complexe
+6. fingerprint/dhcp_fingerprint.py
+7. fingerprint/os_classifier.py   → combine tout, en dernier
+8. storage.py                → sauvegarde les ScanResult
+9. main.py                   → orchestre tout
+```
+
 ## Algo de chaque fichier
 
 ### models.py — Commence par ici
